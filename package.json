@@ -1,0 +1,62 @@
+{
+  "name": "tea-school-management-system",
+  "version": "2.0.0",
+  "description": "The Equilibrium Academy — Offline School Management System",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build",
+    "electron-build": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build8",
+    "electron-log": "^5.1.2",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
+    "date-fns": "^3.3.1",
+    "electron": "^29.1.0",
+    "electron-builder": "^24.13.3",
+    "lucide-react": "^0.344.0",
+    "postcss": "^8.5.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.12.0",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.0.0",
+    "vite-plugin-pwa": "^1.2.0",
+    "wait-on": "^7.2.0"
+  },
+  "homepage": "./",
+  "build": {
+    "appId": "com.tea.schoolmanagement",
+    "productName": "TEA School Management",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "!**/*.map",
+      "!src/**/*",
+      "!public/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis",
+      "publisherName": "TEA"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true
+    }
+  }
+}
