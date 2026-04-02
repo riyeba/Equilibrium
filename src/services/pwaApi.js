@@ -7,8 +7,10 @@ export const initDatabase = async () => {
     if (initPromise) return initPromise;
     initPromise = (async () => {
         const sqlite3 = await sqlite3InitModule();
-        const pool = await sqlite3.installOpfsSAHPool();
-        db = new pool.OpfsSAHPoolDb('tea_school.db');
+
+        // This replaces the broken installOpfsSAHPool code
+        // It uses the latest Object-Oriented OPFS API
+        db = new sqlite3.oo1.OpfsDb('tea_school.db');
 
         db.exec(`
       PRAGMA foreign_keys = ON;
@@ -47,7 +49,6 @@ export const initDatabase = async () => {
     return initPromise;
 };
 
-// ASYNC helper: This makes sure the DB is ready before every query
 const all = async (sql, params = []) => {
     await initDatabase();
     const rows = [];
@@ -58,6 +59,7 @@ const all = async (sql, params = []) => {
 export const pwaApi = {
     login: async (d) => {
         const r = await all("SELECT * FROM users WHERE username=? AND password=?", [d.username, d.password]);
+        // Returning r[0] ensures the user object is sent, not the array
         return r.length ? { success: true, user: r[0] } : { success: false };
     },
     getSettings: async () => {
@@ -97,11 +99,11 @@ export const pwaApi = {
     },
     getPayments: async () => await all("SELECT * FROM student_payments ORDER BY id DESC"),
     getDashboardStats: async () => {
-        const s = await all("SELECT COUNT(*) as c FROM students");
-        const st = await all("SELECT COUNT(*) as c FROM staff");
+        const students = await all("SELECT COUNT(*) as c FROM students");
+        const staff = await all("SELECT COUNT(*) as c FROM staff");
         return {
-            totalStudents: s[0]?.c || 0,
-            totalStaff: st[0]?.c || 0,
+            totalStudents: students[0]?.c || 0,
+            totalStaff: staff[0]?.c || 0,
             todayPayments: 0,
             totalPayments: 0,
             monthSales: 0,
@@ -109,7 +111,7 @@ export const pwaApi = {
             recentPayments: []
         };
     },
-    // Placeholders to keep UI from crashing
+    // Prevent crashes for missing pages
     getSales: async () => [],
     getSubjects: async () => [],
     getInventory: async () => [],
