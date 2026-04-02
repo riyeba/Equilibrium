@@ -29,9 +29,23 @@ export default function AdmissionLetter() {
     const [search, setSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
 
+    // useEffect(() => {
+    //     api.getStudents().then(s => setStudents(s.filter(st => st.status === 'active')));
+    // }, []);
+
     useEffect(() => {
-        api.getStudents().then(s => setStudents(s.filter(st => st.status === 'active')));
+        api.getStudents().then(s => {
+            // 1. Check if 's' is actually an array (prevents crash if DB is slow)
+            const data = Array.isArray(s) ? s : [];
+
+            // 2. Filter only after we are sure we have data
+            setStudents(data.filter(st => st.status === 'active'));
+        }).catch(err => {
+            console.error("Failed to load students on mobile:", err);
+            setStudents([]); // Fallback to empty list instead of crashing
+        });
     }, []);
+
 
     const CLASSES = [
         'Preparatory Zero', 'Nursery 1', 'Nursery 2', 'KG 1', 'KG 2',

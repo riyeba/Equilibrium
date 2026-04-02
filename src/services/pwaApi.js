@@ -126,12 +126,38 @@ export const pwaApi = {
     const counter = parseInt(settings.admission_counter) || 1000;
     const nextCounter = counter + 1;
     const admissionNumber = `${prefix}/${new Date().getFullYear()}/${nextCounter}`;
-    const id = await sqlRun(`INSERT INTO students (admission_number, first_name, last_name, class, status) VALUES (?,?,?,?,?)`,
-      [admissionNumber, s.first_name, s.last_name, s.class, 'active']);
+
+    // FIXED: Now matches the 9 columns defined in the SQL string
+    const id = await sqlRun(
+      `INSERT INTO students (admission_number, first_name, middle_name, last_name, class, section, guardian_name, guardian_phone, status) 
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [
+        admissionNumber,
+        s.first_name,
+        s.middle_name || '',
+        s.last_name,
+        s.class,
+        s.section || '',
+        s.guardian_name || '',
+        s.guardian_phone || '',
+        'active'
+      ]
+    );
+
     await sqlRun("UPDATE settings SET value = ? WHERE key = 'admission_counter'", [nextCounter.toString()]);
     return { success: true, id, admission_number: admissionNumber };
   },
-  updateStudent: (s) => sqlRun(`UPDATE students SET first_name=?, last_name=?, class=?, status=? WHERE id=?`, [s.first_name, s.last_name, s.class, s.status, s.id]),
+
+  updateStudent: (s) => sqlRun(`
+    UPDATE students SET 
+      first_name=?, middle_name=?, last_name=?, class=?, 
+      section=?, guardian_name=?, guardian_phone=?, status=? 
+    WHERE id=?`,
+    [
+      s.first_name, s.middle_name || '', s.last_name, s.class,
+      s.section, s.guardian_name, s.guardian_phone, s.status, s.id
+    ]
+  ),
   deleteStudent: (id) => sqlRun("UPDATE students SET status = 'inactive' WHERE id = ?", [id]),
 
   // STAFF
@@ -146,6 +172,7 @@ export const pwaApi = {
   deleteStaff: (id) => sqlRun("DELETE FROM staff WHERE id = ?", [id]),
 
   // PAYMENTS & FEES
+  // PAYMENTS & FEES
   getFees: () => sqlAll("SELECT * FROM fee_types ORDER BY id DESC"),
   getPayments: () => sqlAll(`
     SELECT p.*, s.first_name, s.last_name, f.name as fee_name 
@@ -155,8 +182,10 @@ export const pwaApi = {
     ORDER BY p.id DESC
   `),
   createPayment: async (p) => {
-    const id = await sqlRun(`INSERT INTO student_payments (receipt_number, student_id, fee_type_id, amount_paid, payment_method, notes) VALUES (?,?,?,?,?,?)`,
-      [p.receipt_number, p.student_id, p.fee_id, p.amount_paid, p.method, p.notes || '']);
+    const id = await sqlRun(
+      `INSERT INTO student_payments (receipt_number, student_id, fee_type_id, amount_paid, payment_method, notes) VALUES (?,?,?,?,?,?)`,
+      [p.receipt_number, p.student_id, p.fee_id, p.amount_paid, p.method, p.notes || '']
+    );
     return { success: true, id };
   },
   deletePayment: (id) => sqlRun("DELETE FROM student_payments WHERE id = ?", [id]),
@@ -165,3 +194,4 @@ export const pwaApi = {
   getInventory: () => sqlAll('SELECT * FROM inventory ORDER BY item_name ASC'),
   adjustStock: (d) => sqlRun('UPDATE inventory SET quantity = quantity + ? WHERE id = ?', [d.amount, d.id])
 };
+
