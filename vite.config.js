@@ -1,50 +1,3 @@
-// import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react'
-// import { VitePWA } from 'vite-plugin-pwa'
-
-// export default defineConfig({
-//   plugins: [
-//     react(),
-//     VitePWA({
-//       registerType: 'autoUpdate',
-//       injectRegister: 'auto',
-//       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'sqlite3.wasm'],
-//       manifest: {
-//         name: 'Equilibrium Management System',
-//         short_name: 'TEA SMS',
-//         description: 'School Management System for Desktop and Mobile',
-//         theme_color: '#ffffff',
-//         background_color: '#ffffff',
-//         display: 'standalone',
-//         start_url: '/',
-//         scope: '/',
-//         icons: [
-//           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-//           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-//           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-//         ]
-//       },
-//       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'sql-wasm.wasm'],
-//       workbox: {
-//         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}']
-//       }
-//     })
-//   ],
-//   base: '/',
-//   build: { outDir: 'dist' },
-//   server: {
-//     port: 5173,
-//     strictPort: true,
-//     // ✅ Headers go HERE inside server config for local dev
-//     headers: {
-//       'Cross-Origin-Opener-Policy': 'same-origin',
-//       'Cross-Origin-Embedder-Policy': 'require-corp',
-//       'Cross-Origin-Resource-Policy': 'same-site',
-//     }
-//   }
-// })
-
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -55,8 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      // ✨ Cleaned up includeAssets: removed the old sql-wasm.wasm
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'sqlite3.wasm'],
       manifest: {
         name: 'Equilibrium Management System',
         short_name: 'TEA SMS',
@@ -72,29 +24,22 @@ export default defineConfig({
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'sql-wasm.wasm'],
       workbox: {
-        // ✨ Glob patterns now include .wasm to ensure sqlite3.wasm works offline
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}']
       }
     })
   ],
   base: '/',
-  build: {
-    outDir: 'dist',
-    // Helps ensure WASM files are handled correctly during build
-    assetsInlineLimit: 0
-  },
+  build: { outDir: 'dist' },
   server: {
     port: 5173,
     strictPort: true,
+    // ✅ Headers go HERE inside server config for local dev
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
       'Cross-Origin-Resource-Policy': 'same-site',
     }
-  },
-
-  optimizeDeps: {
-    exclude: ['@sqlite.org/sqlite-wasm']
   }
 })
