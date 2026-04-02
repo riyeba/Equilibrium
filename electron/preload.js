@@ -159,11 +159,48 @@ contextBridge.exposeInMainWorld('api', {
     },
 
     // PAYMENTS
-    getPayments: () => all("SELECT p.*, s.first_name, s.last_name FROM payments p JOIN students s ON p.student_id = s.id"),
-    createPayment: (p) => run(
-        `INSERT INTO payments (receipt_number, student_id, amount, payment_type, term, academic_year) VALUES (?, ?, ?, ?, ?, ?)`,
-        [p.receipt_number, p.student_id, p.amount, p.payment_type, p.term, p.academic_year]
+    // PAYMENTS section in preload.js
+    getPayments: () => all(`
+    SELECT p.*, s.first_name, s.last_name, f.name as fee_name
+    FROM student_payments p 
+    JOIN students s ON p.student_id = s.id 
+    JOIN fee_types f ON p.fee_type_id = f.id
+    ORDER BY p.id DESC
+`),
+
+    // Load the list of fees from the "fee_types" table
+    getFees: () => all("SELECT * FROM fee_types ORDER BY id DESC"),
+
+    createFee: (f) => run(
+        "INSERT INTO fee_types (name, amount, term, academic_year) VALUES (?, ?, ?, ?)",
+        [f.name, f.amount, f.term, f.academic_year]
     ),
+
+    createPayment: async (p) => {
+        try {
+            const sql = `INSERT INTO student_payments (
+            receipt_number, student_id, fee_type_id, amount_paid, 
+            payment_method, payment_date, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+            const params = [
+                p.receipt_number,
+                p.student_id,
+                p.fee_id,
+                p.amount_paid,
+                p.method,
+                p.date || new Date().toISOString().split('T')[0],
+                p.notes || ''
+            ];
+
+            const id = await run(sql, params);
+            return { success: true, id };
+        } catch (err) {
+            console.error("Payment Error:", err);
+            return { success: false, error: err.message };
+        }
+    },
+
 
     // INVENTORY
     getInventory: () => all('SELECT * FROM inventory'),
