@@ -3,7 +3,7 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 // ─── DB singleton ───────────────────────────────────────────────
 let db = null;
 let initPromise = null;
-const DB_FILENAME = 'tea_school.db';
+const DB_FILENAME = 'tea_school_final.db'; // New name to ensure a fresh start
 
 async function requestPersistence() {
   if (navigator.storage && navigator.storage.persist) {
@@ -14,18 +14,21 @@ async function requestPersistence() {
 
 // ─── Init Database ───────────────────────────────────────────────
 export const initDatabase = async () => {
-  // If running in Electron, skip WASM initialization
   if (typeof window !== 'undefined' && window.api) return;
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     await requestPersistence();
     const sqlite3 = await sqlite3InitModule();
-    db = new sqlite3.oo1.OpfsDb(DB_FILENAME);
+
+    if (sqlite3.opfs) {
+      db = new sqlite3.oo1.OpfsDb(DB_FILENAME);
+    } else {
+      db = new sqlite3.oo1.DB(DB_FILENAME, 'ct');
+    }
 
     db.exec('PRAGMA foreign_keys = ON;');
 
-    // COMPLETE SCHEMA (Matches Electron main.js exactly)
     db.exec(`
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT DEFAULT 'admin', created_at TEXT DEFAULT (datetime('now')));
@@ -37,7 +40,6 @@ export const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY AUTOINCREMENT, sale_number TEXT UNIQUE NOT NULL, item_name TEXT NOT NULL, quantity INTEGER DEFAULT 1, total_price REAL NOT NULL, sale_date TEXT DEFAULT (date('now')));
     `);
 
-    // INSERT DEFAULT SETTINGS
     const settings = [
       ['admission_counter', '1000'],
       ['admission_prefix', 'TEA'],
@@ -45,16 +47,11 @@ export const initDatabase = async () => {
       ['current_year', '2024/2025']
     ];
     settings.forEach(([k, v]) => {
-      db.exec({
-        sql: 'INSERT OR IGNORE INTO settings(key, value) VALUES(?, ?)',
-        bind: [k, v]
-      });
+      db.exec({ sql: 'INSERT OR IGNORE INTO settings(key, value) VALUES(?, ?)', bind: [k, v] });
     });
 
-    // INSERT DEFAULT ADMIN (Username: admin, Password: admin123)
     db.exec("INSERT OR IGNORE INTO users (username,password,role) VALUES('admin','admin123','admin')");
-
-    console.log('TEA PWA Database (OPFS) Ready');
+    console.log('✅ TEA PWA Database Fully Initialized');
   })();
   return initPromise;
 };
@@ -69,7 +66,7 @@ const sqlAll = async (sql, params = []) => {
 
 const sqlGet = async (sql, params = []) => {
   const rows = await sqlAll(sql, params);
-  return rows[0] || null;
+  return (rows && rows.length > 0) ? rows[0] : null;
 };
 
 const sqlRun = async (sql, params = []) => {
@@ -80,10 +77,10 @@ const sqlRun = async (sql, params = []) => {
   return lastId;
 };
 
-// ─── pwaApi (Mobile/Web Bridge) ──────────────────────────────────
+// ─── pwaApi (THE COMPLETE BRIDGE) ────────────────────────────────
 export const pwaApi = {
   // AUTH
-  login: (d) => sqlGet("SELECT * FROM users WHERE username=? AND password=?", [d.username, d.password]),
+  login: async (d) => await sqlGet("SELECT * FROM users WHERE username=? AND password=?", [d.username.toLowerCase().trim(), d.password]),
   changePassword: (d) => sqlRun("UPDATE users SET password=? WHERE id=?", [d.newPassword, d.userId]),
 
   // DASHBOARD
@@ -99,7 +96,6 @@ export const pwaApi = {
         JOIN students s ON p.student_id = s.id 
         ORDER BY p.payment_date DESC LIMIT 5
     `);
-
     return {
       totalStudents: students?.c || 0,
       totalStaff: staff?.c || 0,
@@ -130,14 +126,13 @@ export const pwaApi = {
     const counter = parseInt(settings.admission_counter) || 1000;
     const nextCounter = counter + 1;
     const admissionNumber = `${prefix}/${new Date().getFullYear()}/${nextCounter}`;
-
     const id = await sqlRun(`INSERT INTO students (admission_number, first_name, last_name, class, status) VALUES (?,?,?,?,?)`,
       [admissionNumber, s.first_name, s.last_name, s.class, 'active']);
-
     await sqlRun("UPDATE settings SET value = ? WHERE key = 'admission_counter'", [nextCounter.toString()]);
     return { success: true, id, admission_number: admissionNumber };
   },
   updateStudent: (s) => sqlRun(`UPDATE students SET first_name=?, last_name=?, class=?, status=? WHERE id=?`, [s.first_name, s.last_name, s.class, s.status, s.id]),
+  deleteStudent: (id) => sqlRun("UPDATE students SET status = 'inactive' WHERE id = ?", [id]),
 
   // STAFF
   getStaff: () => sqlAll("SELECT * FROM staff ORDER BY id DESC"),
@@ -147,6 +142,7 @@ export const pwaApi = {
     const id = await sqlRun(`INSERT INTO staff (staff_id, first_name, last_name, role, status) VALUES (?,?,?,?,?)`, [staffId, s.first_name, s.last_name, s.role, 'active']);
     return { success: true, id, staff_id: staffId };
   },
+  updateStaff: (s) => sqlRun(`UPDATE staff SET first_name=?, last_name=?, role=?, status=? WHERE id=?`, [s.first_name, s.last_name, s.role, s.status, s.id]),
   deleteStaff: (id) => sqlRun("DELETE FROM staff WHERE id = ?", [id]),
 
   // PAYMENTS & FEES
@@ -159,8 +155,8 @@ export const pwaApi = {
     ORDER BY p.id DESC
   `),
   createPayment: async (p) => {
-    const id = await sqlRun(`INSERT INTO student_payments (receipt_number, student_id, fee_type_id, amount_paid, payment_method) VALUES (?,?,?,?,?)`,
-      [p.receipt_number, p.student_id, p.fee_id, p.amount_paid, p.method]);
+    const id = await sqlRun(`INSERT INTO student_payments (receipt_number, student_id, fee_type_id, amount_paid, payment_method, notes) VALUES (?,?,?,?,?,?)`,
+      [p.receipt_number, p.student_id, p.fee_id, p.amount_paid, p.method, p.notes || '']);
     return { success: true, id };
   },
   deletePayment: (id) => sqlRun("DELETE FROM student_payments WHERE id = ?", [id]),
