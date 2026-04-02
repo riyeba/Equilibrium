@@ -3,7 +3,6 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 let db = null;
 let initPromise = null;
 
-// RENAME TO initDatabase AND EXPORT
 export const initDatabase = async () => {
     if (initPromise) return initPromise;
     initPromise = (async () => {
@@ -32,7 +31,7 @@ export const initDatabase = async () => {
     `);
 
         db.exec("INSERT OR IGNORE INTO users (username,password,role) VALUES('admin','admin123','admin')");
-        [
+        const defaultSettings = [
             ['school_name', 'The Equilibrium Academy (TEA)'],
             ['school_address', '1, Alagbaa Village, Akinyele Area, Ibadan, Oyo State'],
             ['school_phone', '09043523420, 07063749964'],
@@ -42,27 +41,35 @@ export const initDatabase = async () => {
             ['admission_prefix', 'TEA'],
             ['admission_counter', '1000'],
             ['chairman_name', 'Olarinre I.O.'],
-        ].forEach(([k, v]) => db.exec({ sql: 'INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)', bind: [k, v] }));
+        ];
+        defaultSettings.forEach(([k, v]) => db.exec({ sql: 'INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)', bind: [k, v] }));
     })();
     return initPromise;
 };
 
-const all = (sql, params = []) => {
+// ASYNC helper: This makes sure the DB is ready before every query
+const all = async (sql, params = []) => {
+    await initDatabase();
     const rows = [];
     db.exec({ sql, bind: params, rowMode: 'object', callback: (r) => rows.push(r) });
     return rows;
 };
 
-// Exported API object to match App.jsx expectations
 export const pwaApi = {
-    login: async (d) => { await initDatabase(); const r = all("SELECT * FROM users WHERE username=? AND password=?", [d.username, d.password]); return r.length ? { success: true, user: r[0] } : { success: false }; },
-    getSettings: async () => { await initDatabase(); const r = all("SELECT * FROM settings"); return r.reduce((acc, c) => ({ ...acc, [c.key]: c.value }), {}); },
+    login: async (d) => {
+        const r = await all("SELECT * FROM users WHERE username=? AND password=?", [d.username, d.password]);
+        return r.length ? { success: true, user: r[0] } : { success: false };
+    },
+    getSettings: async () => {
+        const r = await all("SELECT * FROM settings");
+        return r.reduce((acc, c) => ({ ...acc, [c.key]: c.value }), {});
+    },
     saveSettings: async (d) => {
         await initDatabase();
         Object.entries(d).forEach(([k, v]) => db.exec({ sql: "INSERT OR REPLACE INTO settings(key, value) VALUES(?,?)", bind: [k, v] }));
         return { success: true };
     },
-    getStudents: async () => { await initDatabase(); return all("SELECT * FROM students ORDER BY id DESC"); },
+    getStudents: async () => await all("SELECT * FROM students ORDER BY id DESC"),
     createStudent: async (d) => {
         await initDatabase();
         db.exec({
@@ -79,7 +86,7 @@ export const pwaApi = {
         });
         return { success: true };
     },
-    getStaff: async () => { await initDatabase(); return all("SELECT * FROM staff ORDER BY id DESC"); },
+    getStaff: async () => await all("SELECT * FROM staff ORDER BY id DESC"),
     createStaff: async (d) => {
         await initDatabase();
         db.exec({
@@ -88,14 +95,21 @@ export const pwaApi = {
         });
         return { success: true };
     },
-    getPayments: async () => { await initDatabase(); return all("SELECT * FROM student_payments ORDER BY id DESC"); },
+    getPayments: async () => await all("SELECT * FROM student_payments ORDER BY id DESC"),
     getDashboardStats: async () => {
-        await initDatabase();
-        const s = all("SELECT COUNT(*) as c FROM students")[0]?.c || 0;
-        const st = all("SELECT COUNT(*) as c FROM staff")[0]?.c || 0;
-        return { totalStudents: s, totalStaff: st, todayPayments: 0, totalPayments: 0, monthSales: 0, lowStockItems: 0, recentPayments: [] };
+        const s = await all("SELECT COUNT(*) as c FROM students");
+        const st = await all("SELECT COUNT(*) as c FROM staff");
+        return {
+            totalStudents: s[0]?.c || 0,
+            totalStaff: st[0]?.c || 0,
+            todayPayments: 0,
+            totalPayments: 0,
+            monthSales: 0,
+            lowStockItems: 0,
+            recentPayments: []
+        };
     },
-    // Placeholders to prevent crashes
+    // Placeholders to keep UI from crashing
     getSales: async () => [],
     getSubjects: async () => [],
     getInventory: async () => [],
