@@ -8,7 +8,6 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'sqlite3.wasm'],
       manifest: {
         name: 'Equilibrium Management System',
         short_name: 'TEA SMS',
@@ -16,30 +15,31 @@ export default defineConfig({
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'sql-wasm.wasm'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'sqlite3.wasm'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        // CRITICAL for SQLite WASM
+        maximumFileSizeToCacheInBytes: 5000000
       }
     })
   ],
-  base: '/',
-  build: { outDir: 'dist' },
+  optimizeDeps: {
+    // Prevents Vite from breaking the SQLite library
+    exclude: ['@sqlite.org/sqlite-wasm']
+  },
   server: {
     port: 5173,
     strictPort: true,
-    // ✅ Headers go HERE inside server config for local dev
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Resource-Policy': 'same-site',
+      'Cross-Origin-Resource-Policy': 'same-site'
     }
   }
 })

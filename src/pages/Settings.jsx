@@ -28,7 +28,9 @@ export default function Settings() {
         if (pwForm.newPw.length < 6) { setPwError('New password must be at least 6 characters'); return; }
         if (pwForm.newPw !== pwForm.confirm) { setPwError('Passwords do not match'); return; }
         const verify = await api.login({ username: user.username, password: pwForm.current });
-        if (!verify.success) { setPwError('Current password is incorrect'); return; }
+        // Check if a user object was actually returned
+        if (!verify || !verify.username) { setPwError('Current password is incorrect'); return; }
+
         await api.changePassword({ userId: user.id, newPassword: pwForm.newPw });
         setPwMsg('Password changed successfully!');
         setPwForm({ current: '', newPw: '', confirm: '' });
@@ -42,6 +44,7 @@ export default function Settings() {
         ['chairman_name', "Chairman's Name"],
         ['current_term', 'Current Term'],
         ['current_year', 'Academic Year (e.g. 2024/2025)'],
+        ['admission_counter', 'Current Admission Counter (e.g. 1000)'],
         ['admission_prefix', 'Admission Number Prefix (e.g. TEA)'],
     ];
 

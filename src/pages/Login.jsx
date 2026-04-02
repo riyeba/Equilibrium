@@ -14,7 +14,7 @@ export default function Login() {
         setLoading(true); setError('');
         const result = await api.login(form);
         setLoading(false);
-        if (result.success) login(result.user);
+        if (result && result.username) login(result);
         else setError('Invalid username or password');
     };
 
