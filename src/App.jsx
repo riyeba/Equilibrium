@@ -99,11 +99,11 @@ export default function App() {
   const Page = PAGES[page]?.component || Dashboard;
   const title = PAGES[page]?.title || 'Dashboard';
 
-  if (!user) return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      <ErrorBoundary><Login /></ErrorBoundary>
-    </AuthContext.Provider>
-  );
+  // if (!user) return (
+  //   <AuthContext.Provider value={{ user, login, logout }}>
+  //     <ErrorBoundary><Login /></ErrorBoundary>
+  //   </AuthContext.Provider>
+  // );
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
