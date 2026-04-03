@@ -1,13 +1,9 @@
-
-
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { api, useSettings } from '../App';
 import {
     Plus, Search, X, Pencil, Trash2, ChevronLeft, ChevronRight,
     Printer, BookOpen, Users, AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
-
-import schoolLogo from '../assets/schoollogo.jpeg';
 
 // Custom Naira sign icon (₦)
 const NairaSign = ({ size = 24, className = '' }) => (
@@ -87,7 +83,7 @@ function Modal({ title, onClose, children, wide }) {
 const Field = ({ label, k, form, setForm, type = 'text', options, span }) => {
     const [local, setLocal] = useState(form[k] || '');
     // Keep in sync if form[k] changes externally (e.g. reset)
-    // useEffect(() => { setLocal(form[k] || ''); }, [form[k]]);
+    useEffect(() => { setLocal(form[k] || ''); }, [form[k]]);
     return (
         <div className={span === 2 ? 'col-span-2' : ''}>
             <label className="block text-xs font-bold text-gray-600 mb-1">{label}</label>
@@ -117,7 +113,7 @@ const getLogoBase64 = () => new Promise(resolve => {
     const img = new Image(); img.crossOrigin = 'anonymous';
     img.onload = () => { const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').drawImage(img, 0, 0); resolve(c.toDataURL('image/jpeg')); };
     img.onerror = () => resolve('');
-    img.src = schoolLogo;
+    img.src = '/schoollogo.jpeg';
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -150,7 +146,7 @@ async function printReceipt({ student, fee, payments, newPayment, settings }) {
 
       /* Corner SVGs */
       /* Header */
-      .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; margin-left: 28px; padding-top: 6px; }
+      .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-top: 6px; }
       .brand { display: flex; align-items: center; gap: 8px; }
       .rc { font-size: 9px; color: #cc0000; font-weight: bold; margin-bottom: 1px; }
       .school-name { font-size: 14px; font-weight: 900; color: #1A3C6E; line-height: 1.1; text-transform: uppercase; }
@@ -209,14 +205,13 @@ async function printReceipt({ student, fee, payments, newPayment, settings }) {
 
     <!-- TOP-LEFT corners -->
     <svg style="position:absolute;top:0;left:0;pointer-events:none;" width="100" height="130" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-     <path d="M 0,0 L 0,130 L 67,65 L 54,58 Z" fill="#92C0D8"/>
+      <path d="M 0,0 L 0,130 L 67,65 L 54,58 Z" fill="#92C0D8"/>
       <path d="M 0,0 L 100,0 L 50,56 Z" fill="#1A3C6E"/>
-      </svg>
+    </svg>
     <!-- BOTTOM-RIGHT corners -->
-    
-    <svg style="position:absolute;bottom:70;right:0;pointer-events:none;" width="100" height="130" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-       <path d="M 100,130 L 100,0 L 33,65 L 46,72 Z" fill="#1A3C6E"/>
-     <path d="M 100,130 L 0,130 L 50,74 Z" fill="#92C0D8"/>
+    <svg style="position:absolute;bottom:0;right:0;pointer-events:none;" width="100" height="130" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 100,130 L 100,0 L 33,65 L 46,72 Z" fill="#1A3C6E"/>
+      <path d="M 100,130 L 0,130 L 50,74 Z" fill="#92C0D8"/>
     </svg>
 
     <!-- Header -->
@@ -428,12 +423,12 @@ function PaymentModal({ student, fee, initialHistory, initialTotalPaid, settings
         if (!amount || amount <= 0) { setAmountError('Enter a valid amount'); return; }
         if (amount > balance + 0.01) { setAmountError(`Maximum payable is ${fmt(balance)}`); return; }
         setSaving(true);
-        const result = await window.api.createStudentPayment({
+        const result = await api.createStudentPayment({
             student_id: student.id, fee_type_id: fee.id,
             amount_paid: amount, payment_method: method,
             payment_date: payDate, notes,
         });
-        const newHistory = await window.api.getStudentPaymentsByFee({ studentId: student.id, feeTypeId: fee.id });
+        const newHistory = await api.getStudentPaymentsByFee({ studentId: student.id, feeTypeId: fee.id });
         const newTotal = newHistory.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0);
         setSaving(false);
         setHistory(newHistory);
@@ -451,7 +446,7 @@ function PaymentModal({ student, fee, initialHistory, initialTotalPaid, settings
     };
 
     const handleReprint = async (payment) => {
-        const allPayments = await window.api.getStudentPaymentsByFee({ studentId: student.id, feeTypeId: fee.id });
+        const allPayments = await api.getStudentPaymentsByFee({ studentId: student.id, feeTypeId: fee.id });
         const idx = allPayments.findIndex(p => p.id === payment.id);
         const paymentsUpTo = allPayments.slice(0, idx + 1);
         await printReceipt({ student, fee, payments: paymentsUpTo, newPayment: payment, settings });
@@ -580,7 +575,7 @@ export default function Payments() {
     const [payHistory, setPayHistory] = useState([]);
     const [totalPaid, setTotalPaid] = useState(0);
 
-    const loadFees = () => window.api?.getFees ? window.api.getFees().then(setFees) : api.getSettings && setFees([]);
+    const loadFees = () => api.getFees().then(setFees).catch(() => setFees([]));
     const loadStudents = () => api.getStudents().then(s => setStudents(s.filter(st => st.status === 'active')));
 
     useEffect(() => { loadFees(); loadStudents(); }, []);
@@ -589,23 +584,23 @@ export default function Payments() {
     const handleAddFee = async () => {
         if (!feeForm.name || !feeForm.amount) { alert('Fee name and amount are required'); return; }
         setSavingFee(true);
-        await window.api.createFee(feeForm);
+        await api.createFee(feeForm);
         setSavingFee(false); loadFees(); setShowAddFee(false);
         setFeeForm(emptyFeeForm);
     };
     const handleEditFee = async () => {
         setSavingFee(true);
-        await window.api.updateFee(editFee);
+        await api.updateFee(editFee);
         setSavingFee(false); loadFees(); setEditFee(null);
     };
     const handleDeleteFee = async (id, name) => {
         if (!window.confirm(`Delete fee "${name}"? This will also delete all related payment records.`)) return;
-        await window.api.deleteFee(id); loadFees();
+        await api.deleteFee(id); loadFees();
     };
 
     // ── Open payment modal ──
     const openPayModal = async (student, fee) => {
-        const history = await window.api.getStudentPaymentsByFee({ studentId: student.id, feeTypeId: fee.id });
+        const history = await api.getStudentPaymentsByFee({ studentId: student.id, feeTypeId: fee.id });
         const paid = history.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0);
         // Use per-class amount if set, otherwise default
         const effectiveAmount = getEffectiveAmount(fee, student.class);
@@ -643,7 +638,7 @@ export default function Payments() {
         cacheKeyRef.current = key;
         Promise.all(
             filteredStudents.map(s =>
-                window.api.getStudentPaymentsByFee({ studentId: s.id, feeTypeId: activeFee.id })
+                api.getStudentPaymentsByFee({ studentId: s.id, feeTypeId: activeFee.id })
                     .then(hist => ({ id: s.id, paid: hist.reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0) }))
             )
         ).then(results => {
@@ -844,13 +839,13 @@ export default function Payments() {
                                         <div className="bg-blue-900 text-white rounded-t-2xl px-5 py-3 flex flex-wrap items-center gap-3">
                                             <span className="font-bold text-base">{activeFee.name}</span>
                                             {hasClassAmounts
-                                                ? <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold"></span>
+                                                ? <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">Variable per class</span>
                                                 : <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">{fmt(activeFee.amount)} per student</span>
                                             }
                                             {activeFee.term && <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">{activeFee.term}</span>}
                                             {activeFee.due_date && <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">Due: {fmtDate(activeFee.due_date)}</span>}
                                             <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold">{activeFee.target_class}</span>
-                                            {isFiltered && <span className="ml-auto text-blue-200 text-xs italic"></span>}
+                                            {isFiltered && <span className="ml-auto text-blue-200 text-xs italic">Showing filtered results</span>}
                                         </div>
 
                                         {/* Stats cards */}
@@ -1010,4 +1005,3 @@ export default function Payments() {
         </div>
     );
 }
-
